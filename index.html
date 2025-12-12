@@ -1,14 +1,36 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Heart, Star, Zap, Volume2, X, Check, ArrowRight, Home, Trophy, User, BookOpen, Crown } from 'lucide-react';
+/**
+ * Luigilingo - A Gamified Italian Learning Application
+ * * This is a single-file React application designed to mimic the core 
+ * mechanics of popular language learning platforms.
+ * * TECH STACK:
+ * - React (Hooks, State Management)
+ * - Tailwind CSS (Styling & Animation)
+ * - Lucide React (Icons)
+ * - Web Speech API (Text-to-Speech)
+ */
 
-// --- Assets & Data ---
+import React, { useState, useEffect, useCallback } from 'react';
+import { 
+  Heart, Star, Zap, Volume2, X, Check, ArrowRight, 
+  Home, Trophy, User, BookOpen, Lock 
+} from 'lucide-react';
+
+// --- Configuration & Constants ---
+
+const APP_CONFIG = {
+  initialHearts: 5,
+  initialXp: 1450,
+  initialStreak: 12,
+  speechRate: 0.9,
+  lang: 'it-IT'
+};
 
 const LEVELS = [
-  { id: 1, title: 'Basics 1', color: 'bg-green-500', icon: 'egg', top: 10, left: 50 },
-  { id: 2, title: 'Greetings', color: 'bg-blue-500', icon: 'hand', top: 25, left: 40 },
-  { id: 3, title: 'Food', color: 'bg-purple-500', icon: 'apple', top: 40, left: 60 },
-  { id: 4, title: 'Travel', color: 'bg-red-500', icon: 'plane', top: 55, left: 50 },
-  { id: 5, title: 'Animals', color: 'bg-orange-500', icon: 'paw', top: 70, left: 40 },
+  { id: 1, title: 'Basics 1', color: 'bg-green-500', ringColor: 'text-green-500', icon: 'star', locked: false },
+  { id: 2, title: 'Greetings', color: 'bg-blue-500', ringColor: 'text-blue-500', icon: 'hand', locked: false },
+  { id: 3, title: 'Food', color: 'bg-purple-500', ringColor: 'text-purple-500', icon: 'apple', locked: true },
+  { id: 4, title: 'Travel', color: 'bg-red-500', ringColor: 'text-red-500', icon: 'plane', locked: true },
+  { id: 5, title: 'Animals', color: 'bg-orange-500', ringColor: 'text-orange-500', icon: 'paw', locked: true },
 ];
 
 const QUESTIONS = [
@@ -66,29 +88,42 @@ const QUESTIONS = [
   },
 ];
 
-// --- Components ---
+// --- Utility Components ---
 
-const Button3D = ({ children, onClick, color = 'green', disabled, className = '', fullWidth = false }) => {
-  const colorMap = {
-    green: 'bg-[#58cc02] border-[#46a302] active:translate-y-1 active:border-b-0',
-    red: 'bg-[#ff4b4b] border-[#d42c2c] active:translate-y-1 active:border-b-0',
-    blue: 'bg-[#1cb0f6] border-[#1899d6] active:translate-y-1 active:border-b-0',
-    white: 'bg-white border-gray-200 text-gray-700 active:translate-y-1 active:border-b-0 hover:bg-gray-50',
+/**
+ * A highly reusable 3D-style button component.
+ * Mimics the "pressed" state using border-bottom manipulation.
+ */
+const Button3D = ({ 
+  children, 
+  onClick, 
+  color = 'green', 
+  disabled, 
+  fullWidth = false,
+  className = '' 
+}) => {
+  const styles = {
+    green: 'bg-[#58cc02] border-[#46a302] text-white',
+    red: 'bg-[#ff4b4b] border-[#d42c2c] text-white',
+    blue: 'bg-[#1cb0f6] border-[#1899d6] text-white',
+    white: 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50',
     gray: 'bg-gray-200 border-gray-300 text-gray-400 cursor-not-allowed',
-    outline: 'bg-transparent border-2 border-gray-200 text-gray-400 hover:bg-gray-50',
   };
 
-  const finalColor = disabled ? colorMap.gray : (colorMap[color] || colorMap.green);
+  const activeStyle = !disabled 
+    ? 'active:translate-y-1 active:border-b-0' 
+    : '';
 
   return (
     <button
       onClick={disabled ? undefined : onClick}
       className={`
         relative font-bold py-3 px-6 rounded-2xl border-b-4 transition-all uppercase tracking-widest text-sm
-        ${finalColor} ${fullWidth ? 'w-full' : ''} ${className}
-        ${!disabled ? 'text-white' : ''}
+        ${styles[disabled ? 'gray' : color]} 
+        ${activeStyle}
+        ${fullWidth ? 'w-full' : ''} 
+        ${className}
       `}
-      style={color === 'white' || color === 'outline' ? { color: '#4b5563' } : {}}
     >
       {children}
     </button>
@@ -98,7 +133,7 @@ const Button3D = ({ children, onClick, color = 'green', disabled, className = ''
 const ProgressBar = ({ current, total }) => {
   const progress = Math.min(100, (current / total) * 100);
   return (
-    <div className="w-full h-4 bg-gray-200 rounded-full overflow-hidden">
+    <div className="w-full h-4 bg-gray-200 rounded-full overflow-hidden" role="progressbar" aria-valuenow={progress}>
       <div
         className="h-full bg-[#58cc02] transition-all duration-500 ease-out rounded-full"
         style={{ width: `${progress}%` }}
@@ -107,418 +142,360 @@ const ProgressBar = ({ current, total }) => {
   );
 };
 
-const Mascot = ({ mood = 'happy' }) => {
-  // Simple SVG mascot representation
-  return (
-    <div className="w-24 h-24 relative animate-bounce-slow">
-      <svg viewBox="0 0 100 100" className="w-full h-full drop-shadow-lg">
-        <path
-          d="M20,40 Q20,10 50,10 Q80,10 80,40 Q80,80 50,90 Q20,80 20,40"
-          fill="#58cc02"
-        />
-        {/* Eyes */}
+// --- SVG Illustrations ---
+
+const Mascot = ({ mood = 'happy' }) => (
+  <div className="w-32 h-32 relative animate-bounce-slow">
+    <svg viewBox="0 0 100 100" className="w-full h-full drop-shadow-xl">
+      <path d="M20,40 Q20,10 50,10 Q80,10 80,40 Q80,80 50,90 Q20,80 20,40" fill="#58cc02" />
+      <g className="eyes">
         <circle cx="35" cy="40" r="10" fill="white" />
         <circle cx="65" cy="40" r="10" fill="white" />
         <circle cx="35" cy="40" r={mood === 'sad' ? 3 : 4} fill="black" />
         <circle cx="65" cy="40" r={mood === 'sad' ? 3 : 4} fill="black" />
-        
-        {/* Beak */}
-        <path d="M45,50 L55,50 L50,60 Z" fill="#ffca28" />
-        
-        {/* Wings */}
-        <path d="M15,50 Q5,60 15,70" fill="none" stroke="#46a302" strokeWidth="4" />
-        <path d="M85,50 Q95,60 85,70" fill="none" stroke="#46a302" strokeWidth="4" />
-        
-        {/* Expression */}
-        {mood === 'sad' && <path d="M40,70 Q50,65 60,70" fill="none" stroke="black" strokeWidth="2" />}
-        {mood === 'happy' && <path d="M40,70 Q50,80 60,70" fill="none" stroke="black" strokeWidth="2" />}
-        {mood === 'excited' && <circle cx="50" cy="70" r="5" fill="black" />}
-      </svg>
-    </div>
-  );
-};
+      </g>
+      <path d="M45,50 L55,50 L50,60 Z" fill="#ffca28" />
+      <path d="M15,50 Q5,60 15,70" fill="none" stroke="#46a302" strokeWidth="4" />
+      <path d="M85,50 Q95,60 85,70" fill="none" stroke="#46a302" strokeWidth="4" />
+      {mood === 'sad' && <path d="M40,75 Q50,70 60,75" fill="none" stroke="black" strokeWidth="2" />}
+      {mood === 'happy' && <path d="M40,70 Q50,80 60,70" fill="none" stroke="black" strokeWidth="2" />}
+      {mood === 'excited' && <circle cx="50" cy="75" r="8" fill="black" />}
+    </svg>
+  </div>
+);
 
-// --- Main App Component ---
+// --- Core Application ---
 
 export default function Luigilingo() {
-  const [screen, setScreen] = useState('home'); // home, lesson, complete, fail
-  const [lessonIndex, setLessonIndex] = useState(0);
-  const [hearts, setHearts] = useState(5);
-  const [xp, setXp] = useState(1450);
-  const [streak, setStreak] = useState(12);
+  // Navigation State
+  const [screen, setScreen] = useState('home'); 
   
-  // Lesson State
-  const [currentQuestionIdx, setCurrentQuestionIdx] = useState(0);
+  // User Stats
+  const [hearts, setHearts] = useState(APP_CONFIG.initialHearts);
+  const [xp, setXp] = useState(APP_CONFIG.initialXp);
+  const [streak, setStreak] = useState(APP_CONFIG.initialStreak);
+
+  // Lesson Logic State
+  const [currentQIndex, setCurrentQIndex] = useState(0);
   const [selectedTokens, setSelectedTokens] = useState([]);
   const [availableTokens, setAvailableTokens] = useState([]);
   const [selectedOption, setSelectedOption] = useState(null);
-  const [feedbackStatus, setFeedbackStatus] = useState('idle'); // idle, correct, wrong
-  const [shake, setShake] = useState(false);
+  const [feedback, setFeedback] = useState('idle'); // 'idle' | 'correct' | 'wrong'
 
-  // Audio helper
-  const speak = (text) => {
+  // --- Audio Engine ---
+  const speak = useCallback((text) => {
     if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel(); // Stop previous
       const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = 'it-IT';
-      utterance.rate = 0.9;
+      utterance.lang = APP_CONFIG.lang;
+      utterance.rate = APP_CONFIG.speechRate;
       window.speechSynthesis.speak(utterance);
     }
-  };
+  }, []);
 
-  const playSound = (type) => {
-    // In a real app, these would be actual Audio objects. 
-    // For this constraint, we rely on visual feedback mostly, 
-    // but the speech synthesis provides the core audio experience.
-  };
+  // --- Actions ---
 
-  // --- Handlers ---
-
-  const startLesson = (levelId) => {
+  const startLesson = (level) => {
+    if (level.locked) return;
     setScreen('lesson');
-    setCurrentQuestionIdx(0);
-    setLessonIndex(0); // Reset for demo purposes
-    setFeedbackStatus('idle');
+    setCurrentQIndex(0);
+    setFeedback('idle');
+    loadQuestion(0);
+  };
+
+  const loadQuestion = (index) => {
+    const q = QUESTIONS[index];
     setSelectedTokens([]);
     setSelectedOption(null);
-    prepareQuestion(0);
-  };
+    setFeedback('idle');
 
-  const prepareQuestion = (idx) => {
-    const q = QUESTIONS[idx];
     if (q.type === 'word-bank' || q.type === 'listening') {
-      // Shuffle tokens for display
       const shuffled = [...q.tokens].sort(() => Math.random() - 0.5);
       setAvailableTokens(shuffled.map((t, i) => ({ id: i, text: t, used: false })));
-      setSelectedTokens([]);
-    }
-    if (q.audio && q.type !== 'listening') {
-        // Auto play audio on load for some types? Maybe not to avoid annoyance.
     }
   };
 
-  const handleTokenClick = (token, isSelectionArea) => {
-    if (feedbackStatus !== 'idle') return;
-
+  const handleTokenSelect = (token, isDeselecting) => {
+    if (feedback !== 'idle') return;
+    
     speak(token.text);
 
-    if (isSelectionArea) {
-      // Move from selected back to available
+    if (isDeselecting) {
       setSelectedTokens(prev => prev.filter(t => t.id !== token.id));
       setAvailableTokens(prev => prev.map(t => t.id === token.id ? { ...t, used: false } : t));
     } else {
-      // Move from available to selected
-      if (token.used) return;
       setSelectedTokens(prev => [...prev, token]);
       setAvailableTokens(prev => prev.map(t => t.id === token.id ? { ...t, used: true } : t));
     }
   };
 
-  const handleOptionClick = (id) => {
-    if (feedbackStatus !== 'idle') return;
-    setSelectedOption(id);
-    const opt = QUESTIONS[currentQuestionIdx].options.find(o => o.id === id);
-    if(opt) speak(opt.text);
-  };
-
-  const checkAnswer = () => {
-    const q = QUESTIONS[currentQuestionIdx];
+  const handleCheck = () => {
+    const q = QUESTIONS[currentQIndex];
     let isCorrect = false;
 
     if (q.type === 'word-bank' || q.type === 'listening') {
       const answer = selectedTokens.map(t => t.text).join(' ');
-      // Simple check (case insensitive for user friendliness, though strictness varies)
       isCorrect = answer.toLowerCase() === q.correctTokens.join(' ').toLowerCase();
     } else if (q.type === 'multiple-choice') {
       isCorrect = selectedOption === q.correctId;
     }
 
     if (isCorrect) {
-      setFeedbackStatus('correct');
-      playSound('correct');
+      setFeedback('correct');
       if (q.audio) speak(q.audio);
     } else {
-      setFeedbackStatus('wrong');
-      setShake(true);
-      setTimeout(() => setShake(false), 500);
-      setHearts(h => Math.max(0, h - 1));
-      playSound('wrong');
+      setFeedback('wrong');
+      setHearts(prev => Math.max(0, prev - 1));
     }
   };
 
-  const nextQuestion = () => {
+  const handleContinue = () => {
     if (hearts === 0) {
       setScreen('fail');
       return;
     }
-
-    if (currentQuestionIdx < QUESTIONS.length - 1) {
-      const nextIdx = currentQuestionIdx + 1;
-      setCurrentQuestionIdx(nextIdx);
-      setFeedbackStatus('idle');
-      setSelectedOption(null);
-      prepareQuestion(nextIdx);
+    
+    if (currentQIndex < QUESTIONS.length - 1) {
+      const nextIdx = currentQIndex + 1;
+      setCurrentQIndex(nextIdx);
+      loadQuestion(nextIdx);
     } else {
+      setXp(prev => prev + 25);
       setScreen('complete');
-      setXp(x => x + 20);
     }
   };
 
-  const quitLesson = () => {
-    setScreen('home');
-  };
-
-  // --- Renderers ---
+  // --- Screens ---
 
   const renderHome = () => (
     <div className="min-h-screen bg-white pb-24">
-      {/* Top Bar */}
-      <header className="sticky top-0 bg-white/95 backdrop-blur-sm z-10 border-b border-gray-200 px-4 py-3 flex justify-between items-center max-w-md mx-auto">
-        <div className="flex gap-4">
-            <div className="flex items-center gap-1">
-                <img src="https://flagcdn.com/w40/it.png" className="w-6 h-4 rounded-sm shadow-sm" alt="Italian" />
-            </div>
-        </div>
-        <div className="flex gap-4 font-bold text-gray-700">
-            <div className="flex items-center gap-1 text-orange-500">
-                <Zap size={20} fill="currentColor" /> {streak}
-            </div>
-            <div className="flex items-center gap-1 text-yellow-500">
-                <Star size={20} fill="currentColor" /> {xp}
-            </div>
-            <div className="flex items-center gap-1 text-red-500">
-                <Heart size={20} fill="currentColor" /> {hearts}
-            </div>
+      {/* Sticky Header */}
+      <header className="sticky top-0 bg-white/95 backdrop-blur-md z-20 border-b border-gray-200 px-4 py-3">
+        <div className="max-w-md mx-auto flex justify-between items-center">
+          <div className="flex gap-2">
+            <img src="https://flagcdn.com/w40/it.png" alt="Italian" className="w-8 h-6 rounded shadow-sm object-cover" />
+          </div>
+          <div className="flex gap-4 font-bold text-gray-700">
+            <div className="flex items-center gap-1 text-orange-500"><Zap size={20} fill="currentColor" /> {streak}</div>
+            <div className="flex items-center gap-1 text-yellow-500"><Star size={20} fill="currentColor" /> {xp}</div>
+            <div className="flex items-center gap-1 text-red-500"><Heart size={20} fill="currentColor" /> {hearts}</div>
+          </div>
         </div>
       </header>
 
-      {/* Path */}
-      <div className="max-w-md mx-auto pt-8 px-4 flex flex-col items-center gap-6 relative">
+      {/* Level Path */}
+      <div className="max-w-md mx-auto pt-12 px-4 flex flex-col items-center gap-8 relative">
         {LEVELS.map((level, idx) => (
           <div 
             key={level.id} 
-            className="relative z-0"
-            style={{ 
-                transform: `translateX(${(idx % 2 === 0 ? -1 : 1) * 20}px)` 
-            }}
+            className="relative z-10 transition-transform hover:scale-105"
+            style={{ transform: `translateX(${(idx % 2 === 0 ? -1 : 1) * 20}px)` }}
           >
-             {/* Crown/Icon */}
-            <div className="flex flex-col items-center gap-2 group cursor-pointer" onClick={() => startLesson(level.id)}>
-                <div className="relative">
-                     {/* 3D Button Circle */}
-                    <div className={`w-20 h-20 rounded-full ${level.color} flex items-center justify-center shadow-[0_6px_0_0_rgba(0,0,0,0.2)] active:shadow-none active:translate-y-[6px] transition-all border-4 border-white ring-4 ring-gray-100`}>
-                        {level.icon === 'egg' && <Star size={40} className="text-white opacity-90" fill="currentColor" />}
-                        {level.icon === 'hand' && <User size={40} className="text-white opacity-90" />}
-                        {level.icon === 'apple' && <Check size={40} className="text-white opacity-90" />}
-                        {level.icon === 'plane' && <ArrowRight size={40} className="text-white opacity-90" />}
-                        {level.icon === 'paw' && <Zap size={40} className="text-white opacity-90" />}
-                        
-                        {/* Progress Ring mockup */}
-                        <svg className="absolute -top-1 -left-1 w-[88px] h-[88px] rotate-[-90deg]">
-                             <circle cx="44" cy="44" r="42" fill="none" stroke="#e5e7eb" strokeWidth="3" />
-                             {idx === 0 && <circle cx="44" cy="44" r="42" fill="none" stroke="#fbbf24" strokeWidth="3" strokeDasharray="264" strokeDashoffset="60" strokeLinecap="round" />}
-                        </svg>
-                    </div>
+            <div 
+              onClick={() => startLesson(level)}
+              className="flex flex-col items-center gap-3 cursor-pointer group"
+            >
+              <div className="relative">
+                <div className={`
+                  w-20 h-20 rounded-full flex items-center justify-center 
+                  shadow-[0_6px_0_0_rgba(0,0,0,0.2)] border-4 border-white 
+                  ${level.locked ? 'bg-gray-200' : level.color}
+                  ${!level.locked && 'active:shadow-none active:translate-y-[6px] transition-all'}
+                `}>
+                  {level.locked ? <Lock size={32} className="text-gray-400" /> : <Star size={40} className="text-white" fill="currentColor" />}
                 </div>
-                <span className="font-bold text-gray-700 text-lg">{level.title}</span>
+              </div>
+              <span className={`font-bold text-lg ${level.locked ? 'text-gray-400' : 'text-gray-700'}`}>
+                {level.title}
+              </span>
             </div>
           </div>
         ))}
-        
-        {/* Floating Mascot */}
-        <div className="fixed bottom-24 right-4 z-20 hidden md:block">
-            <Mascot mood="happy" />
+        <div className="fixed bottom-24 right-4 hidden md:block z-30 pointer-events-none">
+          <Mascot mood="happy" />
         </div>
       </div>
 
-      {/* Bottom Nav */}
-      <nav className="fixed bottom-0 w-full bg-white border-t border-gray-200 py-3 px-6 flex justify-around items-center z-50">
-        <Home size={28} className="text-[#58cc02]" />
-        <Trophy size={28} className="text-gray-400 hover:text-gray-600 cursor-pointer" />
-        <BookOpen size={28} className="text-gray-400 hover:text-gray-600 cursor-pointer" />
-        <User size={28} className="text-gray-400 hover:text-gray-600 cursor-pointer" />
+      {/* Bottom Navigation */}
+      <nav className="fixed bottom-0 w-full bg-white border-t border-gray-200 py-3 px-6 z-50">
+        <div className="max-w-md mx-auto flex justify-between items-center text-gray-400">
+          <Home size={28} className="text-green-500 cursor-pointer" />
+          <Trophy size={28} className="hover:text-yellow-500 cursor-pointer transition-colors" />
+          <BookOpen size={28} className="hover:text-blue-500 cursor-pointer transition-colors" />
+          <User size={28} className="hover:text-purple-500 cursor-pointer transition-colors" />
+        </div>
       </nav>
     </div>
   );
 
   const renderLesson = () => {
-    const q = QUESTIONS[currentQuestionIdx];
+    const q = QUESTIONS[currentQIndex];
+    const isWordBank = q.type === 'word-bank' || q.type === 'listening';
 
     return (
-      <div className="min-h-screen bg-white flex flex-col max-w-lg mx-auto overflow-hidden">
+      <div className="min-h-screen bg-white flex flex-col max-w-lg mx-auto">
         {/* Lesson Header */}
-        <div className="px-4 py-6 flex items-center gap-4">
-          <X className="text-gray-400 cursor-pointer hover:text-gray-600" onClick={quitLesson} />
-          <ProgressBar current={currentQuestionIdx + (feedbackStatus === 'correct' ? 1 : 0)} total={QUESTIONS.length} />
+        <div className="px-6 py-8 flex items-center gap-4">
+          <X className="text-gray-400 cursor-pointer hover:text-gray-600" onClick={() => setScreen('home')} />
+          <ProgressBar current={currentQIndex} total={QUESTIONS.length} />
           <div className="flex items-center text-red-500 font-bold">
-            <Heart fill="currentColor" className="w-6 h-6 mr-1" /> {hearts}
+            <Heart fill="currentColor" className="w-6 h-6 mr-2" /> {hearts}
           </div>
         </div>
 
-        {/* Content Area */}
-        <div className="flex-1 px-4 flex flex-col gap-6 overflow-y-auto pb-40">
-          <h2 className="text-2xl font-bold text-gray-700 mt-2">{q.question}</h2>
+        {/* Question Content */}
+        <div className="flex-1 px-6 flex flex-col gap-8 pb-32">
+          <h2 className="text-2xl font-bold text-gray-800">{q.question}</h2>
 
-          {/* Type: Word Bank or Listening */}
-          {(q.type === 'word-bank' || q.type === 'listening') && (
-            <>
-                <div className="flex items-start gap-4">
-                    <div className="mt-2 cursor-pointer" onClick={() => q.audio && speak(q.audio)}>
-                         <div className="bg-[#1cb0f6] p-3 rounded-2xl shadow-[0_4px_0_0_#1899d6] active:translate-y-1 active:shadow-none transition-all">
-                             <Volume2 className="text-white w-6 h-6" />
-                         </div>
-                    </div>
-                    
-                    {/* Speech Bubble / Target */}
-                    {q.type === 'word-bank' && (
-                        <div className="border-2 border-gray-200 rounded-2xl p-4 relative bg-white">
-                            <div className="absolute top-4 -left-2 w-4 h-4 bg-white border-l-2 border-b-2 border-gray-200 transform rotate-45"></div>
-                            <p className="text-lg text-gray-600">{q.translation}</p>
-                        </div>
-                    )}
-                </div>
+          {/* Type: Listening & Word Bank */}
+          {isWordBank && (
+            <div className="space-y-8">
+              <div className="flex items-start gap-4">
+                <button 
+                  onClick={() => speak(q.audio)}
+                  className="bg-[#1cb0f6] p-4 rounded-2xl shadow-[0_4px_0_0_#1899d6] active:translate-y-1 active:shadow-none transition-all hover:bg-[#1cb0f6]/90"
+                >
+                  <Volume2 className="text-white w-8 h-8" />
+                </button>
+                
+                {q.type === 'word-bank' && (
+                  <div className="border-2 border-gray-200 rounded-2xl p-4 relative bg-white flex-1">
+                    <div className="absolute top-6 -left-2 w-4 h-4 bg-white border-l-2 border-b-2 border-gray-200 transform rotate-45" />
+                    <p className="text-xl text-gray-700">{q.translation}</p>
+                  </div>
+                )}
+              </div>
 
-                {/* Selected Area */}
-                <div className="min-h-[140px] border-t-2 border-b-2 border-transparent bg-gray-50 rounded-xl p-2 flex flex-wrap gap-2 content-start transition-colors"
-                     style={{ borderColor: feedbackStatus === 'wrong' ? '#ff4b4b' : 'transparent' }}>
-                    {selectedTokens.map((token, i) => (
-                        <button
-                            key={`${token.id}-sel`}
-                            onClick={() => handleTokenClick(token, true)}
-                            className="bg-white border-2 border-gray-200 rounded-xl px-4 py-2 font-medium text-gray-700 shadow-[0_2px_0_0_rgba(0,0,0,0.1)] hover:bg-gray-50"
-                        >
-                            {token.text}
-                        </button>
-                    ))}
-                </div>
+              {/* Selection Area */}
+              <div className="min-h-[140px] border-t-2 border-b-2 border-gray-100 py-4 flex flex-wrap gap-2 content-start">
+                {selectedTokens.map((token) => (
+                  <button
+                    key={`${token.id}-sel`}
+                    onClick={() => handleTokenSelect(token, true)}
+                    className="bg-white border-2 border-gray-200 rounded-xl px-4 py-2 font-bold text-gray-700 shadow-sm hover:bg-gray-50"
+                  >
+                    {token.text}
+                  </button>
+                ))}
+              </div>
 
-                {/* Bank Area */}
-                <div className="flex flex-wrap gap-2 justify-center mt-4">
-                    {availableTokens.map((token) => (
-                        <div key={token.id} className={token.used ? 'opacity-0 pointer-events-none' : ''}>
-                             <button
-                                onClick={() => handleTokenClick(token, false)}
-                                className="bg-white border-2 border-gray-200 rounded-xl px-4 py-2 font-medium text-gray-700 shadow-[0_2px_0_0_rgba(0,0,0,0.1)] active:scale-95 transition-transform"
-                            >
-                                {token.text}
-                            </button>
-                        </div>
-                    ))}
-                </div>
-            </>
+              {/* Word Bank */}
+              <div className="flex flex-wrap gap-2 justify-center">
+                {availableTokens.map((token) => (
+                  <div key={token.id} className={token.used ? 'opacity-0 pointer-events-none' : ''}>
+                    <button
+                      onClick={() => handleTokenSelect(token, false)}
+                      className="bg-white border-2 border-gray-200 rounded-xl px-4 py-2 font-bold text-gray-700 shadow-[0_2px_0_0_rgba(0,0,0,0.15)] active:translate-y-0.5 active:shadow-none"
+                    >
+                      {token.text}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
 
           {/* Type: Multiple Choice */}
           {q.type === 'multiple-choice' && (
-            <div className="grid grid-cols-1 gap-4 mt-4">
+            <div className="grid grid-cols-1 gap-4">
               {q.options.map((opt) => (
                 <div 
-                    key={opt.id}
-                    onClick={() => handleOptionClick(opt.id)}
-                    className={`
-                        border-2 rounded-2xl p-4 flex items-center gap-4 cursor-pointer transition-all
-                        ${selectedOption === opt.id 
-                            ? 'border-[#1cb0f6] bg-blue-50' 
-                            : 'border-gray-200 hover:bg-gray-50'}
-                    `}
+                  key={opt.id}
+                  onClick={() => {
+                    if (feedback === 'idle') {
+                      setSelectedOption(opt.id);
+                      speak(opt.text);
+                    }
+                  }}
+                  className={`
+                    border-2 rounded-2xl p-4 flex items-center gap-4 cursor-pointer transition-all
+                    ${selectedOption === opt.id 
+                      ? 'border-[#1cb0f6] bg-blue-50' 
+                      : 'border-gray-200 hover:bg-gray-50'}
+                  `}
                 >
-                    <div className="text-4xl">{opt.image}</div>
-                    <div className={`font-bold text-lg ${selectedOption === opt.id ? 'text-[#1cb0f6]' : 'text-gray-700'}`}>
-                        {opt.text}
-                    </div>
+                  <span className="text-4xl">{opt.image}</span>
+                  <span className={`font-bold text-lg ${selectedOption === opt.id ? 'text-[#1cb0f6]' : 'text-gray-700'}`}>
+                    {opt.text}
+                  </span>
                 </div>
               ))}
             </div>
           )}
         </div>
 
-        {/* Footer / Feedback Sheet */}
-        <div 
-            className={`
-                fixed bottom-0 w-full max-w-lg border-t-2 p-4 pb-8 transition-colors duration-300 z-50
-                ${feedbackStatus === 'idle' ? 'bg-white border-gray-200' : ''}
-                ${feedbackStatus === 'correct' ? 'bg-[#d7ffb8] border-transparent' : ''}
-                ${feedbackStatus === 'wrong' ? 'bg-[#ffdfe0] border-transparent' : ''}
-            `}
-        >
-          <div className="flex justify-between items-center mb-4">
-            {feedbackStatus === 'correct' && (
-                <div className="flex items-center gap-3 text-[#58cc02] font-bold text-xl animate-pulse">
-                    <div className="bg-white p-2 rounded-full">
-                        <Check size={32} strokeWidth={4} />
-                    </div>
-                    <span>Excellent!</span>
-                </div>
+        {/* Feedback Sheet */}
+        <div className={`
+          fixed bottom-0 w-full max-w-lg p-6 pb-8 border-t-2 z-50 transition-colors duration-300
+          ${feedback === 'idle' ? 'bg-white border-gray-200' : ''}
+          ${feedback === 'correct' ? 'bg-[#d7ffb8] border-transparent' : ''}
+          ${feedback === 'wrong' ? 'bg-[#ffdfe0] border-transparent' : ''}
+        `}>
+          <div className="flex justify-between items-center mb-6">
+            {feedback === 'correct' && (
+              <div className="flex items-center gap-3 text-[#58cc02] font-extrabold text-2xl animate-pulse">
+                <div className="bg-white p-2 rounded-full"><Check size={32} strokeWidth={4} /></div>
+                <span>Excellent!</span>
+              </div>
             )}
-            {feedbackStatus === 'wrong' && (
-                <div className="flex flex-col gap-1">
-                    <div className="flex items-center gap-3 text-[#ff4b4b] font-bold text-xl">
-                        <div className="bg-white p-2 rounded-full">
-                            <X size={32} strokeWidth={4} />
-                        </div>
-                        <span>Incorrect</span>
-                    </div>
-                    <div className="text-[#ff4b4b] pl-14">
-                        Correct Answer: <span className="font-bold">{q.audio}</span> {/* Using audio text as generic truth for simplicity */}
-                    </div>
+            {feedback === 'wrong' && (
+              <div className="flex flex-col">
+                <div className="flex items-center gap-3 text-[#ff4b4b] font-extrabold text-2xl mb-2">
+                  <div className="bg-white p-2 rounded-full"><X size={32} strokeWidth={4} /></div>
+                  <span>Incorrect</span>
                 </div>
+                <div className="text-[#ff4b4b] pl-14 text-sm font-bold">
+                  Correct solution: <span className="text-black opacity-70">{q.audio}</span>
+                </div>
+              </div>
             )}
           </div>
 
           <Button3D 
             fullWidth 
-            color={feedbackStatus === 'wrong' ? 'red' : (feedbackStatus === 'correct' ? 'green' : (selectedTokens.length === 0 && !selectedOption ? 'gray' : 'green'))}
-            onClick={feedbackStatus === 'idle' ? checkAnswer : nextQuestion}
-            disabled={feedbackStatus === 'idle' && selectedTokens.length === 0 && !selectedOption}
+            color={feedback === 'wrong' ? 'red' : feedback === 'correct' ? 'green' : 'green'}
+            onClick={feedback === 'idle' ? handleCheck : handleContinue}
+            disabled={feedback === 'idle' && !selectedOption && selectedTokens.length === 0}
           >
-            {feedbackStatus === 'idle' ? 'Check' : 'Continue'}
+            {feedback === 'idle' ? 'Check' : 'Continue'}
           </Button3D>
         </div>
       </div>
     );
   };
 
-  const renderComplete = () => (
+  const renderResult = (type) => (
     <div className="min-h-screen bg-white flex flex-col items-center justify-center p-8 text-center max-w-md mx-auto">
-      <Mascot mood="excited" />
-      <h2 className="text-3xl font-bold text-yellow-400 mt-8 mb-4">Lesson Complete!</h2>
+      <Mascot mood={type === 'complete' ? 'excited' : 'sad'} />
+      <h2 className={`text-3xl font-bold mt-8 mb-4 ${type === 'complete' ? 'text-yellow-400' : 'text-gray-700'}`}>
+        {type === 'complete' ? 'Lesson Complete!' : 'Out of Hearts!'}
+      </h2>
       
-      <div className="grid grid-cols-3 gap-4 w-full mb-8">
-        <div className="bg-orange-400 rounded-2xl p-4 text-white">
-            <div className="text-xs uppercase font-bold opacity-80">XP Earned</div>
-            <div className="text-2xl font-bold flex justify-center items-center gap-1">
-                <Zap size={20} fill="currentColor" /> 20
+      {type === 'complete' ? (
+        <div className="grid grid-cols-2 gap-4 w-full mb-12">
+          <div className="bg-yellow-400 rounded-2xl p-6 text-white shadow-[0_4px_0_0_#ca8a04]">
+            <div className="text-xs uppercase font-bold opacity-90">Total XP</div>
+            <div className="text-3xl font-bold flex justify-center items-center gap-2 mt-1">
+              <Zap size={24} fill="currentColor" /> {xp}
             </div>
+          </div>
+          <div className="bg-[#1cb0f6] rounded-2xl p-6 text-white shadow-[0_4px_0_0_#1899d6]">
+            <div className="text-xs uppercase font-bold opacity-90">Accuracy</div>
+            <div className="text-3xl font-bold mt-1">100%</div>
+          </div>
         </div>
-        <div className="bg-blue-400 rounded-2xl p-4 text-white">
-            <div className="text-xs uppercase font-bold opacity-80">Committed</div>
-            <div className="text-2xl font-bold">100%</div>
-        </div>
-        <div className="bg-green-400 rounded-2xl p-4 text-white">
-            <div className="text-xs uppercase font-bold opacity-80">Amazing</div>
-            <div className="text-2xl font-bold">Speed</div>
-        </div>
-      </div>
+      ) : (
+        <p className="text-gray-500 mb-12 text-lg">
+          Don't give up! Review your mistakes and try again to restore your hearts.
+        </p>
+      )}
 
-      <Button3D fullWidth onClick={() => setScreen('home')}>
-        Continue
+      <Button3D fullWidth onClick={() => {
+        if(type === 'fail') setHearts(APP_CONFIG.initialHearts);
+        setScreen('home');
+      }}>
+        {type === 'complete' ? 'Continue' : 'Try Again'}
       </Button3D>
-    </div>
-  );
-
-  const renderFail = () => (
-    <div className="min-h-screen bg-gray-900/90 flex flex-col items-center justify-center p-8 text-center absolute top-0 left-0 w-full z-50 backdrop-blur-sm">
-      <div className="bg-white rounded-3xl p-6 w-full max-w-sm flex flex-col items-center animate-bounce-slow">
-          <Mascot mood="sad" />
-          <h2 className="text-2xl font-bold text-gray-700 mt-4">Out of hearts!</h2>
-          <p className="text-gray-500 mb-6">You made too many mistakes. Practice makes perfect!</p>
-          
-          <Button3D fullWidth color="blue" onClick={() => {
-              setHearts(5);
-              setScreen('home');
-          }}>
-            Quit Lesson
-          </Button3D>
-      </div>
     </div>
   );
 
@@ -526,9 +503,10 @@ export default function Luigilingo() {
     <>
       {screen === 'home' && renderHome()}
       {screen === 'lesson' && renderLesson()}
-      {screen === 'complete' && renderComplete()}
-      {screen === 'fail' && renderFail()}
+      {screen === 'complete' && renderResult('complete')}
+      {screen === 'fail' && renderResult('fail')}
     </>
   );
 }
+
 
