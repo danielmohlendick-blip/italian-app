@@ -1,1198 +1,534 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <meta name="theme-color" content="#0b1220" />
-  <title>LinguaPop — Italian</title>
-  <style>
-    :root{
-      --bg:#0b1220;
-      --panel:#101a33;
-      --panel2:#0f1730;
-      --stroke:rgba(255,255,255,.10);
-      --text:#eaf0ff;
-      --muted:rgba(234,240,255,.68);
-      --accent:#4ade80;  /* green */
-      --accent2:#60a5fa; /* blue */
-      --warn:#fbbf24;    /* amber */
-      --bad:#fb7185;     /* pink */
-      --shadow: 0 18px 55px rgba(0,0,0,.35);
-      --radius: 22px;
-    }
+import React, { useState, useEffect, useRef } from 'react';
+import { Heart, Star, Zap, Volume2, X, Check, ArrowRight, Home, Trophy, User, BookOpen, Crown } from 'lucide-react';
 
-    *{box-sizing:border-box}
-    html,body{height:100%}
-    body{
-      margin:0;
-      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
-      background:
-        radial-gradient(1200px 800px at 20% 15%, rgba(96,165,250,.18), transparent 55%),
-        radial-gradient(900px 700px at 85% 25%, rgba(74,222,128,.14), transparent 60%),
-        radial-gradient(900px 700px at 50% 95%, rgba(251,191,36,.10), transparent 60%),
-        var(--bg);
-      color:var(--text);
-      overflow-x:hidden;
-    }
+// --- Assets & Data ---
 
-    /* App shell */
-    .app{
-      max-width: 980px;
-      margin: 0 auto;
-      padding: 18px 16px 120px;
-    }
+const LEVELS = [
+  { id: 1, title: 'Basics 1', color: 'bg-green-500', icon: 'egg', top: 10, left: 50 },
+  { id: 2, title: 'Greetings', color: 'bg-blue-500', icon: 'hand', top: 25, left: 40 },
+  { id: 3, title: 'Food', color: 'bg-purple-500', icon: 'apple', top: 40, left: 60 },
+  { id: 4, title: 'Travel', color: 'bg-red-500', icon: 'plane', top: 55, left: 50 },
+  { id: 5, title: 'Animals', color: 'bg-orange-500', icon: 'paw', top: 70, left: 40 },
+];
 
-    .topbar{
-      position: sticky;
-      top: 0;
-      z-index: 20;
-      backdrop-filter: blur(10px);
-      background: linear-gradient(to bottom, rgba(11,18,32,.92), rgba(11,18,32,.55));
-      border-bottom: 1px solid var(--stroke);
-      padding: 12px 10px;
-      margin: 0 -16px 14px;
-    }
-    .topbar-inner{
-      max-width: 980px;
-      margin: 0 auto;
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap: 10px;
-      padding: 0 6px;
-    }
+const QUESTIONS = [
+  {
+    id: 1,
+    type: 'word-bank',
+    question: 'Translate this sentence',
+    target: 'Ciao',
+    translation: 'Hello',
+    tokens: ['Ciao', 'Arrivederci', 'Mela', 'Uomo'],
+    correctTokens: ['Ciao'],
+    audio: 'Ciao',
+  },
+  {
+    id: 2,
+    type: 'word-bank',
+    question: 'How do you say "The apple"?',
+    target: 'La mela',
+    translation: 'The apple',
+    tokens: ['Il', 'La', 'mela', 'pane', 'mangio'],
+    correctTokens: ['La', 'mela'],
+    audio: 'La mela',
+  },
+  {
+    id: 3,
+    type: 'multiple-choice',
+    question: 'Which of these is "The bread"?',
+    options: [
+      { id: 'a', text: 'Il pane', image: '🍞' },
+      { id: 'b', text: 'L\'acqua', image: '💧' },
+      { id: 'c', text: 'La donna', image: '👩' },
+    ],
+    correctId: 'a',
+    audio: 'Il pane',
+  },
+  {
+    id: 4,
+    type: 'word-bank',
+    question: 'Translate: "I eat the sugar"',
+    target: 'Io mangio lo zucchero',
+    translation: 'I eat the sugar',
+    tokens: ['Io', 'bevo', 'mangio', 'lo', 'zucchero', 'il', 'donna'],
+    correctTokens: ['Io', 'mangio', 'lo', 'zucchero'],
+    audio: 'Io mangio lo zucchero',
+  },
+  {
+    id: 5,
+    type: 'listening',
+    question: 'Type what you hear',
+    target: 'Lui beve l\'acqua',
+    translation: 'He drinks the water',
+    tokens: ['Lui', 'beve', 'l\'acqua', 'mangia', 'mela', 'Il', 'Lei'],
+    correctTokens: ['Lui', 'beve', 'l\'acqua'],
+    audio: 'Lui beve l\'acqua',
+  },
+];
 
-    .brand{
-      display:flex; align-items:center; gap:10px;
-      user-select:none;
-    }
-    .logo{
-      width: 40px; height: 40px;
-      border-radius: 14px;
-      background: linear-gradient(135deg, rgba(96,165,250,.9), rgba(74,222,128,.9));
-      box-shadow: 0 12px 40px rgba(96,165,250,.18);
-      position:relative;
-      overflow:hidden;
-    }
-    .logo:before{
-      content:"";
-      position:absolute; inset:-40%;
-      background: radial-gradient(circle at 35% 35%, rgba(255,255,255,.85), transparent 55%);
-      transform: rotate(25deg);
-      opacity:.55;
-    }
-    .brand h1{
-      font-size: 16px;
-      margin:0;
-      letter-spacing:.2px;
-    }
-    .brand small{
-      display:block;
-      color: var(--muted);
-      font-size: 12px;
-      margin-top: 2px;
-    }
+// --- Components ---
 
-    .stats{
-      display:flex; align-items:center; gap:10px; flex-wrap:wrap;
-      justify-content:flex-end;
-    }
-    .pill{
-      display:flex; align-items:center; gap:8px;
-      padding: 10px 12px;
-      border-radius: 999px;
-      background: rgba(255,255,255,.04);
-      border: 1px solid var(--stroke);
-      box-shadow: 0 10px 40px rgba(0,0,0,.18);
-      font-size: 13px;
-      user-select:none;
-    }
-    .pill b{font-variant-numeric: tabular-nums}
-    .dot{
-      width: 10px; height: 10px; border-radius: 99px;
-      background: var(--accent2);
-      box-shadow: 0 0 0 6px rgba(96,165,250,.14);
-    }
-    .dot.green{background: var(--accent); box-shadow:0 0 0 6px rgba(74,222,128,.12)}
-    .dot.amber{background: var(--warn); box-shadow:0 0 0 6px rgba(251,191,36,.12)}
-    .dot.pink{background: var(--bad); box-shadow:0 0 0 6px rgba(251,113,133,.10)}
-
-    .grid{
-      display:grid;
-      grid-template-columns: 340px 1fr;
-      gap: 14px;
-    }
-
-    @media (max-width: 900px){
-      .grid{grid-template-columns: 1fr}
-    }
-
-    .card{
-      background: linear-gradient(180deg, rgba(16,26,51,.92), rgba(15,23,48,.92));
-      border: 1px solid var(--stroke);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      overflow:hidden;
-    }
-    .card-head{
-      padding: 16px 16px 10px;
-      border-bottom: 1px solid var(--stroke);
-      display:flex;
-      align-items:flex-start;
-      justify-content:space-between;
-      gap: 10px;
-    }
-    .card-title{
-      margin:0;
-      font-size: 14px;
-      letter-spacing: .2px;
-    }
-    .card-sub{
-      margin: 6px 0 0;
-      color: var(--muted);
-      font-size: 12px;
-      line-height: 1.35;
-    }
-
-    .card-body{padding: 14px 16px 16px}
-
-    /* Buttons */
-    .btn{
-      appearance:none;
-      border:none;
-      cursor:pointer;
-      border-radius: 16px;
-      padding: 12px 14px;
-      font-weight: 700;
-      color: rgba(11,18,32,.96);
-      background: linear-gradient(135deg, rgba(74,222,128,.95), rgba(96,165,250,.95));
-      box-shadow: 0 16px 55px rgba(74,222,128,.18);
-      transition: transform .12s ease, filter .12s ease;
-      user-select:none;
-    }
-    .btn:active{transform: translateY(1px) scale(.99)}
-    .btn:disabled{opacity:.5; cursor:not-allowed; filter:grayscale(.2)}
-    .btn.secondary{
-      background: rgba(255,255,255,.06);
-      color: var(--text);
-      border: 1px solid var(--stroke);
-      box-shadow:none;
-      font-weight: 700;
-    }
-    .btn.small{padding: 10px 12px; border-radius: 14px; font-size: 13px}
-    .btn.ghost{
-      background: transparent;
-      border: 1px solid var(--stroke);
-      color: var(--text);
-    }
-
-    /* Skill path */
-    .path{
-      display:flex;
-      flex-direction:column;
-      gap: 10px;
-    }
-    .node{
-      display:flex;
-      gap: 12px;
-      padding: 12px;
-      border-radius: 18px;
-      background: rgba(255,255,255,.03);
-      border: 1px solid var(--stroke);
-      align-items:center;
-      transition: transform .14s ease, background .14s ease;
-      cursor:pointer;
-      user-select:none;
-    }
-    .node:hover{transform: translateY(-1px); background: rgba(255,255,255,.05)}
-    .node.locked{opacity:.55; cursor:not-allowed}
-    .badge{
-      width: 44px; height: 44px;
-      border-radius: 16px;
-      display:grid; place-items:center;
-      background: rgba(96,165,250,.12);
-      border: 1px solid rgba(96,165,250,.20);
-      position:relative;
-      overflow:hidden;
-    }
-    .badge.green{background: rgba(74,222,128,.12); border-color: rgba(74,222,128,.20)}
-    .badge.amber{background: rgba(251,191,36,.10); border-color: rgba(251,191,36,.20)}
-    .badge:before{
-      content:"";
-      position:absolute; inset:-60%;
-      background: radial-gradient(circle at 30% 30%, rgba(255,255,255,.6), transparent 55%);
-      transform: rotate(25deg);
-      opacity:.35;
-    }
-    .badge span{font-size: 18px; position:relative}
-    .node h3{margin:0; font-size: 14px}
-    .node p{margin:4px 0 0; color:var(--muted); font-size: 12px; line-height: 1.3}
-    .node-right{
-      margin-left:auto;
-      display:flex;
-      align-items:center;
-      gap: 10px;
-    }
-    .progress{
-      width: 88px;
-      height: 10px;
-      border-radius: 999px;
-      background: rgba(255,255,255,.06);
-      border: 1px solid var(--stroke);
-      overflow:hidden;
-    }
-    .progress > div{
-      height:100%;
-      width:0%;
-      background: linear-gradient(90deg, rgba(74,222,128,.95), rgba(96,165,250,.95));
-    }
-
-    /* Lesson */
-    .lesson-top{
-      display:flex; align-items:center; justify-content:space-between; gap: 10px;
-      margin-bottom: 10px;
-    }
-    .meter{
-      flex:1;
-      height: 10px;
-      border-radius: 999px;
-      background: rgba(255,255,255,.06);
-      border: 1px solid var(--stroke);
-      overflow:hidden;
-    }
-    .meter > div{
-      height:100%;
-      width: 0%;
-      background: linear-gradient(90deg, rgba(96,165,250,.95), rgba(74,222,128,.95));
-      transition: width .2s ease;
-    }
-    .hearts{display:flex; gap:6px}
-    .heart{
-      width: 12px; height: 12px;
-      transform: rotate(45deg);
-      background: rgba(251,113,133,.9);
-      position:relative;
-      border-radius: 2px;
-      box-shadow: 0 0 0 6px rgba(251,113,133,.10);
-    }
-    .heart:before,.heart:after{
-      content:"";
-      width: 12px; height: 12px;
-      background: rgba(251,113,133,.9);
-      border-radius: 50%;
-      position:absolute;
-    }
-    .heart:before{left:-6px; top:0}
-    .heart:after{top:-6px; left:0}
-    .heart.off{opacity:.25; box-shadow:none}
-    .q{
-      padding: 14px;
-      border-radius: 18px;
-      border: 1px solid var(--stroke);
-      background: rgba(255,255,255,.03);
-      margin: 10px 0 12px;
-    }
-    .q h2{margin:0; font-size: 18px; letter-spacing: .1px}
-    .q p{margin:6px 0 0; color: var(--muted); font-size: 13px; line-height: 1.35}
-
-    .answers{
-      display:grid;
-      grid-template-columns: 1fr;
-      gap: 10px;
-      margin-top: 12px;
-    }
-    .opt{
-      padding: 12px 12px;
-      border-radius: 16px;
-      border: 1px solid var(--stroke);
-      background: rgba(255,255,255,.03);
-      cursor:pointer;
-      display:flex; align-items:center; justify-content:space-between; gap:12px;
-      transition: transform .12s ease, background .12s ease, border-color .12s ease;
-      user-select:none;
-    }
-    .opt:hover{transform: translateY(-1px); background: rgba(255,255,255,.05)}
-    .opt.selected{border-color: rgba(96,165,250,.45); background: rgba(96,165,250,.10)}
-    .opt.correct{border-color: rgba(74,222,128,.55); background: rgba(74,222,128,.12)}
-    .opt.wrong{border-color: rgba(251,113,133,.55); background: rgba(251,113,133,.10)}
-    .opt code{
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-      font-size: 12px;
-      color: rgba(234,240,255,.8);
-      background: rgba(0,0,0,.22);
-      padding: 4px 8px;
-      border-radius: 12px;
-      border: 1px solid rgba(255,255,255,.10);
-    }
-
-    .row{display:flex; gap:10px; flex-wrap:wrap; align-items:center}
-    .input{
-      width:100%;
-      padding: 12px 14px;
-      border-radius: 16px;
-      border: 1px solid var(--stroke);
-      background: rgba(255,255,255,.03);
-      color: var(--text);
-      outline:none;
-      font-size: 14px;
-    }
-    .input:focus{border-color: rgba(96,165,250,.55); box-shadow: 0 0 0 6px rgba(96,165,250,.10)}
-
-    .footerbar{
-      position: fixed;
-      left: 0; right:0; bottom:0;
-      padding: 12px 14px calc(12px + env(safe-area-inset-bottom));
-      background: linear-gradient(to top, rgba(11,18,32,.96), rgba(11,18,32,.55));
-      border-top: 1px solid var(--stroke);
-      backdrop-filter: blur(10px);
-      z-index: 50;
-    }
-    .footerbar-inner{
-      max-width: 980px;
-      margin: 0 auto;
-      display:flex; align-items:center; justify-content:space-between; gap: 12px;
-    }
-    .hint{color: var(--muted); font-size: 12px; line-height: 1.25}
-    .toast{
-      position: fixed;
-      left: 50%;
-      transform: translateX(-50%);
-      bottom: 92px;
-      background: rgba(16,26,51,.96);
-      border: 1px solid var(--stroke);
-      border-radius: 18px;
-      padding: 10px 12px;
-      box-shadow: var(--shadow);
-      color: var(--text);
-      font-size: 13px;
-      opacity: 0;
-      pointer-events:none;
-      transition: opacity .18s ease, transform .18s ease;
-      z-index: 60;
-      max-width: min(520px, calc(100vw - 22px));
-    }
-    .toast.show{opacity: 1; transform: translateX(-50%) translateY(-4px)}
-
-    /* Confetti */
-    canvas#confetti{
-      position: fixed;
-      inset: 0;
-      pointer-events: none;
-      z-index: 999;
-    }
-
-    /* Tiny sparkle animation */
-    @keyframes pop{
-      0%{transform: scale(.92); opacity:.6}
-      60%{transform: scale(1.02); opacity:1}
-      100%{transform: scale(1); opacity:1}
-    }
-    .pop{animation: pop .18s ease}
-  </style>
-</head>
-<body>
-  <canvas id="confetti"></canvas>
-  <div class="topbar">
-    <div class="topbar-inner">
-      <div class="brand">
-        <div class="logo"></div>
-        <div>
-          <h1>LinguaPop <span style="opacity:.65">•</span> Italian</h1>
-          <small id="subtitle">Path + tiny lessons that feel good ✨</small>
-        </div>
-      </div>
-      <div class="stats">
-        <div class="pill"><span class="dot green"></span> <span>XP</span> <b id="xp">0</b></div>
-        <div class="pill"><span class="dot amber"></span> <span>Streak</span> <b id="streak">0</b></div>
-        <div class="pill"><span class="dot"></span> <span>Level</span> <b id="level">1</b></div>
-      </div>
-    </div>
-  </div>
-
-  <div class="app">
-    <div class="grid">
-      <!-- Left: Path -->
-      <section class="card">
-        <div class="card-head">
-          <div>
-            <h2 class="card-title">Your path</h2>
-            <p class="card-sub">Complete lessons to unlock the next skill. Keep the streak alive by doing at least 1 lesson per day.</p>
-          </div>
-          <button class="btn secondary small" id="resetBtn" title="Reset progress">Reset</button>
-        </div>
-        <div class="card-body">
-          <div class="path" id="path"></div>
-        </div>
-      </section>
-
-      <!-- Right: Main -->
-      <section class="card" id="mainCard">
-        <div class="card-head">
-          <div>
-            <h2 class="card-title" id="mainTitle">Welcome</h2>
-            <p class="card-sub" id="mainSub">Pick a lesson on the left to start.</p>
-          </div>
-          <div class="row">
-            <button class="btn ghost small" id="speakBtn" style="display:none">🔊 Speak</button>
-            <button class="btn secondary small" id="dailyBtn">Daily goal</button>
-          </div>
-        </div>
-        <div class="card-body" id="main"></div>
-      </section>
-    </div>
-  </div>
-
-  <div class="footerbar">
-    <div class="footerbar-inner">
-      <div class="hint" id="footerHint">Tip: tap “🔊 Speak” during lessons to hear the Italian.</div>
-      <div class="row" style="justify-content:flex-end">
-        <button class="btn secondary" id="homeBtn">Home</button>
-        <button class="btn" id="actionBtn" disabled>Start lesson</button>
-      </div>
-    </div>
-  </div>
-
-  <div class="toast" id="toast"></div>
-
-<script>
-  // ----------------------------
-  // Data (you can expand easily)
-  // ----------------------------
-  const SKILLS = [
-    {
-      id: "basics-1",
-      icon: "🍏",
-      color: "green",
-      title: "Basics 1",
-      desc: "Ciao, grazie, sì/no, simple phrases",
-      lessons: [
-        {
-          id: "b1-1",
-          title: "Hello & thanks",
-          steps: [
-            { type:"mc", prompt:"Translate: “Hello”", it:"Ciao", choices:["Ciao","Grazie","Arrivederci","Per favore"], answer:"Ciao" },
-            { type:"mc", prompt:"Translate: “Thank you”", it:"Grazie", choices:["Scusa","Grazie","Prego","Buona notte"], answer:"Grazie" },
-            { type:"type", prompt:"Type in Italian: “Please”", it:"Per favore", answers:["per favore"] },
-            { type:"mc", prompt:"Translate: “Yes”", it:"Sì", choices:["No","Sì","Forse","Mai"], answer:"Sì" },
-          ]
-        },
-        {
-          id: "b1-2",
-          title: "Mini convo",
-          steps: [
-            { type:"mc", prompt:"You meet someone. You say…", it:"Ciao!", choices:["Buonanotte!","Ciao!","Mi dispiace.","Andiamo."], answer:"Ciao!" },
-            { type:"mc", prompt:"Translate: “You’re welcome”", it:"Prego", choices:["Prego","Grazie","Per favore","Certo"], answer:"Prego" },
-            { type:"type", prompt:"Type in Italian: “How are you?”", it:"Come stai?", answers:["come stai","come stai?"] },
-            { type:"mc", prompt:"Translate: “Goodbye”", it:"Arrivederci", choices:["Arrivederci","Ciao","Sì","Forse"], answer:"Arrivederci" },
-          ]
-        }
-      ]
-    },
-    {
-      id: "basics-2",
-      icon: "🍝",
-      color: "amber",
-      title: "Basics 2",
-      desc: "I am, you are, simple sentences",
-      lessons: [
-        {
-          id: "b2-1",
-          title: "To be (essere)",
-          steps: [
-            { type:"mc", prompt:"Translate: “I am Daniel”", it:"Sono Daniel", choices:["Sei Daniel","Sono Daniel","È Daniel","Siamo Daniel"], answer:"Sono Daniel" },
-            { type:"mc", prompt:"Translate: “You are ready”", it:"Sei pronto", choices:["Sono pronto","Sei pronto","Siamo pronti","È pronto"], answer:"Sei pronto" },
-            { type:"type", prompt:"Type in Italian: “We are here”", it:"Siamo qui", answers:["siamo qui"] },
-            { type:"mc", prompt:"Translate: “They are Italian”", it:"Sono italiani", choices:["Sono italiani","Siete italiani","È italiano","Siamo italiani"], answer:"Sono italiani" },
-          ]
-        }
-      ]
-    },
-    {
-      id: "food",
-      icon: "☕️",
-      color: "blue",
-      title: "Food",
-      desc: "Order politely, coffee, water",
-      lessons: [
-        {
-          id: "f-1",
-          title: "At the bar",
-          steps: [
-            { type:"mc", prompt:"Translate: “A coffee, please”", it:"Un caffè, per favore", choices:["Un tè, grazie","Un caffè, per favore","Una pizza, per favore","Acqua, grazie"], answer:"Un caffè, per favore" },
-            { type:"type", prompt:"Type in Italian: “Water”", it:"Acqua", answers:["acqua"] },
-            { type:"mc", prompt:"Translate: “How much is it?”", it:"Quanto costa?", choices:["Dove sei?","Quanto costa?","Che ore sono?","Perché?"], answer:"Quanto costa?" },
-          ]
-        }
-      ]
-    }
-  ];
-
-  // ----------------------------
-  // State + persistence
-  // ----------------------------
-  const STORAGE_KEY = "linguapop_v1";
-  const todayKey = () => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+const Button3D = ({ children, onClick, color = 'green', disabled, className = '', fullWidth = false }) => {
+  const colorMap = {
+    green: 'bg-[#58cc02] border-[#46a302] active:translate-y-1 active:border-b-0',
+    red: 'bg-[#ff4b4b] border-[#d42c2c] active:translate-y-1 active:border-b-0',
+    blue: 'bg-[#1cb0f6] border-[#1899d6] active:translate-y-1 active:border-b-0',
+    white: 'bg-white border-gray-200 text-gray-700 active:translate-y-1 active:border-b-0 hover:bg-gray-50',
+    gray: 'bg-gray-200 border-gray-300 text-gray-400 cursor-not-allowed',
+    outline: 'bg-transparent border-2 border-gray-200 text-gray-400 hover:bg-gray-50',
   };
 
-  const defaultState = () => ({
-    xp: 0,
-    level: 1,
-    streak: 0,
-    lastActiveDay: null,
-    heartsMax: 3,
-    progress: {
-      // skillId: { completedLessons: Set/array }
-    },
-    dailyGoalXP: 30,
-    todayXP: 0,
-    today: todayKey()
-  });
+  const finalColor = disabled ? colorMap.gray : (colorMap[color] || colorMap.green);
 
-  let state = load();
+  return (
+    <button
+      onClick={disabled ? undefined : onClick}
+      className={`
+        relative font-bold py-3 px-6 rounded-2xl border-b-4 transition-all uppercase tracking-widest text-sm
+        ${finalColor} ${fullWidth ? 'w-full' : ''} ${className}
+        ${!disabled ? 'text-white' : ''}
+      `}
+      style={color === 'white' || color === 'outline' ? { color: '#4b5563' } : {}}
+    >
+      {children}
+    </button>
+  );
+};
 
-  function load(){
-    try{
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if(!raw) return defaultState();
-      const s = JSON.parse(raw);
-      // day rollover
-      const t = todayKey();
-      if(s.today !== t){
-        s.today = t;
-        s.todayXP = 0;
-      }
-      // normalize
-      s.progress ||= {};
-      s.xp ||= 0; s.level ||= 1; s.streak ||= 0;
-      s.heartsMax ||= 3;
-      s.dailyGoalXP ||= 30;
-      s.lastActiveDay ||= null;
-      return s;
-    }catch(e){
-      return defaultState();
+const ProgressBar = ({ current, total }) => {
+  const progress = Math.min(100, (current / total) * 100);
+  return (
+    <div className="w-full h-4 bg-gray-200 rounded-full overflow-hidden">
+      <div
+        className="h-full bg-[#58cc02] transition-all duration-500 ease-out rounded-full"
+        style={{ width: `${progress}%` }}
+      />
+    </div>
+  );
+};
+
+const Mascot = ({ mood = 'happy' }) => {
+  // Simple SVG mascot representation
+  return (
+    <div className="w-24 h-24 relative animate-bounce-slow">
+      <svg viewBox="0 0 100 100" className="w-full h-full drop-shadow-lg">
+        <path
+          d="M20,40 Q20,10 50,10 Q80,10 80,40 Q80,80 50,90 Q20,80 20,40"
+          fill="#58cc02"
+        />
+        {/* Eyes */}
+        <circle cx="35" cy="40" r="10" fill="white" />
+        <circle cx="65" cy="40" r="10" fill="white" />
+        <circle cx="35" cy="40" r={mood === 'sad' ? 3 : 4} fill="black" />
+        <circle cx="65" cy="40" r={mood === 'sad' ? 3 : 4} fill="black" />
+        
+        {/* Beak */}
+        <path d="M45,50 L55,50 L50,60 Z" fill="#ffca28" />
+        
+        {/* Wings */}
+        <path d="M15,50 Q5,60 15,70" fill="none" stroke="#46a302" strokeWidth="4" />
+        <path d="M85,50 Q95,60 85,70" fill="none" stroke="#46a302" strokeWidth="4" />
+        
+        {/* Expression */}
+        {mood === 'sad' && <path d="M40,70 Q50,65 60,70" fill="none" stroke="black" strokeWidth="2" />}
+        {mood === 'happy' && <path d="M40,70 Q50,80 60,70" fill="none" stroke="black" strokeWidth="2" />}
+        {mood === 'excited' && <circle cx="50" cy="70" r="5" fill="black" />}
+      </svg>
+    </div>
+  );
+};
+
+// --- Main App Component ---
+
+export default function Luigilingo() {
+  const [screen, setScreen] = useState('home'); // home, lesson, complete, fail
+  const [lessonIndex, setLessonIndex] = useState(0);
+  const [hearts, setHearts] = useState(5);
+  const [xp, setXp] = useState(1450);
+  const [streak, setStreak] = useState(12);
+  
+  // Lesson State
+  const [currentQuestionIdx, setCurrentQuestionIdx] = useState(0);
+  const [selectedTokens, setSelectedTokens] = useState([]);
+  const [availableTokens, setAvailableTokens] = useState([]);
+  const [selectedOption, setSelectedOption] = useState(null);
+  const [feedbackStatus, setFeedbackStatus] = useState('idle'); // idle, correct, wrong
+  const [shake, setShake] = useState(false);
+
+  // Audio helper
+  const speak = (text) => {
+    if ('speechSynthesis' in window) {
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'it-IT';
+      utterance.rate = 0.9;
+      window.speechSynthesis.speak(utterance);
     }
-  }
-  function save(){
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    renderStats();
-    renderPath();
-  }
+  };
 
-  function addXP(amount){
-    state.xp += amount;
-    state.todayXP += amount;
-    // Leveling: simple curve
-    const newLevel = Math.floor(state.xp / 120) + 1;
-    state.level = Math.max(1, newLevel);
-    tickStreak();
-    save();
-  }
+  const playSound = (type) => {
+    // In a real app, these would be actual Audio objects. 
+    // For this constraint, we rely on visual feedback mostly, 
+    // but the speech synthesis provides the core audio experience.
+  };
 
-  function tickStreak(){
-    const t = todayKey();
-    if(state.lastActiveDay === t) return;
-    // if lastActiveDay is yesterday -> streak++
-    if(state.lastActiveDay){
-      const last = new Date(state.lastActiveDay+"T00:00:00");
-      const now = new Date(t+"T00:00:00");
-      const diffDays = Math.round((now - last) / (1000*60*60*24));
-      if(diffDays === 1) state.streak += 1;
-      else if(diffDays > 1) state.streak = 1;
-    }else{
-      state.streak = 1;
+  // --- Handlers ---
+
+  const startLesson = (levelId) => {
+    setScreen('lesson');
+    setCurrentQuestionIdx(0);
+    setLessonIndex(0); // Reset for demo purposes
+    setFeedbackStatus('idle');
+    setSelectedTokens([]);
+    setSelectedOption(null);
+    prepareQuestion(0);
+  };
+
+  const prepareQuestion = (idx) => {
+    const q = QUESTIONS[idx];
+    if (q.type === 'word-bank' || q.type === 'listening') {
+      // Shuffle tokens for display
+      const shuffled = [...q.tokens].sort(() => Math.random() - 0.5);
+      setAvailableTokens(shuffled.map((t, i) => ({ id: i, text: t, used: false })));
+      setSelectedTokens([]);
     }
-    state.lastActiveDay = t;
-  }
-
-  function isSkillUnlocked(skillIndex){
-    if(skillIndex === 0) return true;
-    // unlocked if previous skill has at least 1 completed lesson
-    const prev = SKILLS[skillIndex-1];
-    const prevProg = state.progress[prev.id];
-    return prevProg && (prevProg.completedLessons?.length || 0) > 0;
-  }
-
-  function lessonCompleted(skillId, lessonId){
-    state.progress[skillId] ||= { completedLessons: [] };
-    const arr = state.progress[skillId].completedLessons;
-    if(!arr.includes(lessonId)) arr.push(lessonId);
-    save();
-  }
-
-  function skillProgress(skill){
-    const prog = state.progress[skill.id]?.completedLessons || [];
-    const total = skill.lessons.length;
-    const done = prog.length;
-    return { done, total, pct: total ? Math.round((done/total)*100) : 0 };
-  }
-
-  // ----------------------------
-  // UI helpers
-  // ----------------------------
-  const el = (id) => document.getElementById(id);
-  const toastEl = el("toast");
-
-  function toast(msg){
-    toastEl.textContent = msg;
-    toastEl.classList.add("show");
-    setTimeout(()=>toastEl.classList.remove("show"), 1600);
-  }
-
-  function renderStats(){
-    el("xp").textContent = state.xp;
-    el("streak").textContent = state.streak;
-    el("level").textContent = state.level;
-    // subtitle daily goal
-    const remaining = Math.max(0, state.dailyGoalXP - state.todayXP);
-    el("subtitle").textContent = remaining === 0
-      ? `Daily goal done 🎉 (+${state.todayXP} XP today)`
-      : `Daily goal: ${state.todayXP}/${state.dailyGoalXP} XP (need ${remaining})`;
-  }
-
-  // ----------------------------
-  // Confetti (tiny + fast)
-  // ----------------------------
-  const confettiCanvas = document.getElementById("confetti");
-  const ctx = confettiCanvas.getContext("2d");
-  let confettiParticles = [];
-  function resizeCanvas(){
-    confettiCanvas.width = window.innerWidth;
-    confettiCanvas.height = window.innerHeight;
-  }
-  window.addEventListener("resize", resizeCanvas);
-  resizeCanvas();
-
-  function burstConfetti(){
-    const n = 120;
-    confettiParticles = [];
-    const cx = confettiCanvas.width/2;
-    const cy = confettiCanvas.height*0.25;
-    for(let i=0;i<n;i++){
-      confettiParticles.push({
-        x: cx, y: cy,
-        vx: (Math.random()*2-1)*7,
-        vy: (Math.random()*-1)*10 - 2,
-        g: 0.22 + Math.random()*0.12,
-        s: 3 + Math.random()*5,
-        a: 1,
-        r: Math.random()*Math.PI*2,
-        vr: (Math.random()*2-1)*0.25
-      });
+    if (q.audio && q.type !== 'listening') {
+        // Auto play audio on load for some types? Maybe not to avoid annoyance.
     }
-    let t=0;
-    const anim = ()=>{
-      t++;
-      ctx.clearRect(0,0,confettiCanvas.width, confettiCanvas.height);
-      for(const p of confettiParticles){
-        p.vy += p.g;
-        p.x += p.vx;
-        p.y += p.vy;
-        p.r += p.vr;
-        p.a *= 0.992;
-        ctx.save();
-        ctx.globalAlpha = Math.max(0, p.a);
-        ctx.translate(p.x,p.y);
-        ctx.rotate(p.r);
-        ctx.fillStyle = ["#60a5fa","#4ade80","#fbbf24","#fb7185","#a78bfa"][Math.floor(Math.random()*5)];
-        ctx.fillRect(-p.s/2,-p.s/2,p.s,p.s*0.9);
-        ctx.restore();
-      }
-      if(t < 75) requestAnimationFrame(anim);
-      else ctx.clearRect(0,0,confettiCanvas.width, confettiCanvas.height);
-    };
-    requestAnimationFrame(anim);
-  }
+  };
 
-  // ----------------------------
-  // Speech
-  // ----------------------------
-  function speakItalian(text){
-    try{
-      if(!("speechSynthesis" in window)) { toast("No speech on this device"); return; }
-      const u = new SpeechSynthesisUtterance(text);
-      u.lang = "it-IT";
-      u.rate = 0.95;
-      speechSynthesis.cancel();
-      speechSynthesis.speak(u);
-    }catch(e){
-      toast("Speech not available");
+  const handleTokenClick = (token, isSelectionArea) => {
+    if (feedbackStatus !== 'idle') return;
+
+    speak(token.text);
+
+    if (isSelectionArea) {
+      // Move from selected back to available
+      setSelectedTokens(prev => prev.filter(t => t.id !== token.id));
+      setAvailableTokens(prev => prev.map(t => t.id === token.id ? { ...t, used: false } : t));
+    } else {
+      // Move from available to selected
+      if (token.used) return;
+      setSelectedTokens(prev => [...prev, token]);
+      setAvailableTokens(prev => prev.map(t => t.id === token.id ? { ...t, used: true } : t));
     }
-  }
+  };
 
-  // ----------------------------
-  // Screens: home + lesson
-  // ----------------------------
-  let screen = { type:"home" };
-  let lessonRun = null;
+  const handleOptionClick = (id) => {
+    if (feedbackStatus !== 'idle') return;
+    setSelectedOption(id);
+    const opt = QUESTIONS[currentQuestionIdx].options.find(o => o.id === id);
+    if(opt) speak(opt.text);
+  };
 
-  const main = el("main");
-  const actionBtn = el("actionBtn");
-  const homeBtn = el("homeBtn");
-  const speakBtn = el("speakBtn");
-  const dailyBtn = el("dailyBtn");
-  const resetBtn = el("resetBtn");
+  const checkAnswer = () => {
+    const q = QUESTIONS[currentQuestionIdx];
+    let isCorrect = false;
 
-  homeBtn.addEventListener("click", ()=>goHome());
-  dailyBtn.addEventListener("click", ()=>showDailyGoal());
-  resetBtn.addEventListener("click", ()=>{
-    if(confirm("Reset all progress?")){
-      localStorage.removeItem(STORAGE_KEY);
-      state = load();
-      goHome();
-      toast("Reset complete");
-    }
-  });
-
-  speakBtn.addEventListener("click", ()=>{
-    if(lessonRun?.currentStep?.it) speakItalian(lessonRun.currentStep.it);
-  });
-
-  function goHome(){
-    screen = { type:"home" };
-    lessonRun = null;
-    el("mainTitle").textContent = "Home";
-    el("mainSub").textContent = "Choose a skill on the left. Finish a lesson to unlock more.";
-    speakBtn.style.display = "none";
-    actionBtn.textContent = "Start lesson";
-    actionBtn.disabled = true;
-    renderMain();
-  }
-
-  function showDailyGoal(){
-    screen = { type:"daily" };
-    const remaining = Math.max(0, state.dailyGoalXP - state.todayXP);
-    el("mainTitle").textContent = "Daily goal";
-    el("mainSub").textContent = "Small daily wins = huge progress.";
-    speakBtn.style.display = "none";
-    actionBtn.textContent = remaining === 0 ? "Nice!" : "Quick lesson";
-    actionBtn.disabled = false;
-    actionBtn.onclick = ()=>{
-      // Start first unlocked incomplete lesson
-      const pick = pickNextLesson();
-      if(pick) startLesson(pick.skillId, pick.lessonId);
-      else toast("You finished everything here — add more lessons!");
-    };
-    main.innerHTML = `
-      <div class="q pop">
-        <h2>Today: <span style="color:var(--accent)">${state.todayXP}</span> / ${state.dailyGoalXP} XP</h2>
-        <p>${remaining===0 ? "Goal achieved. Keep going for bonus XP!" : `Do one quick lesson to hit your goal (need ${remaining} XP).`}</p>
-      </div>
-      <div class="row">
-        <button class="btn secondary" onclick="window.__setGoal(20)">20 XP</button>
-        <button class="btn secondary" onclick="window.__setGoal(30)">30 XP</button>
-        <button class="btn secondary" onclick="window.__setGoal(50)">50 XP</button>
-        <button class="btn secondary" onclick="window.__setGoal(80)">80 XP</button>
-      </div>
-      <div style="height:10px"></div>
-      <div class="q">
-        <h2>Streak: 🔥 ${state.streak}</h2>
-        <p>Do at least <b>1 lesson</b> per day to keep the streak alive.</p>
-      </div>
-    `;
-  }
-  window.__setGoal = (n)=>{ state.dailyGoalXP = n; save(); toast(`Daily goal set to ${n} XP`); showDailyGoal(); };
-
-  function pickNextLesson(){
-    for(let si=0; si<SKILLS.length; si++){
-      if(!isSkillUnlocked(si)) break;
-      const skill = SKILLS[si];
-      const prog = state.progress[skill.id]?.completedLessons || [];
-      // incomplete lesson first
-      const l = skill.lessons.find(x => !prog.includes(x.id));
-      if(l) return { skillId: skill.id, lessonId: l.id };
-      // else repeat first
-      if(skill.lessons[0]) return { skillId: skill.id, lessonId: skill.lessons[0].id };
-    }
-    return null;
-  }
-
-  function renderPath(){
-    const path = el("path");
-    path.innerHTML = "";
-    SKILLS.forEach((skill, idx)=>{
-      const unlocked = isSkillUnlocked(idx);
-      const {done,total,pct} = skillProgress(skill);
-
-      const node = document.createElement("div");
-      node.className = "node" + (unlocked ? "" : " locked");
-      node.innerHTML = `
-        <div class="badge ${skill.color}"><span>${skill.icon}</span></div>
-        <div>
-          <h3>${skill.title}</h3>
-          <p>${skill.desc}</p>
-        </div>
-        <div class="node-right">
-          <div class="progress" title="${done}/${total} lessons">
-            <div style="width:${pct}%"></div>
-          </div>
-          <code>${done}/${total}</code>
-        </div>
-      `;
-      node.addEventListener("click", ()=>{
-        if(!unlocked){ toast("Finish the previous skill to unlock 🔒"); return; }
-        openSkill(skill.id);
-      });
-      path.appendChild(node);
-    });
-  }
-
-  function openSkill(skillId){
-    const skill = SKILLS.find(s=>s.id===skillId);
-    screen = { type:"skill", skillId };
-    el("mainTitle").textContent = skill.title;
-    el("mainSub").textContent = "Pick a lesson. Completed lessons can be repeated for XP.";
-    speakBtn.style.display = "none";
-    actionBtn.textContent = "Start lesson";
-    actionBtn.disabled = true;
-    actionBtn.onclick = null;
-
-    const prog = state.progress[skillId]?.completedLessons || [];
-    main.innerHTML = `
-      <div class="q pop">
-        <h2>${skill.icon} ${skill.title}</h2>
-        <p>${skill.desc}</p>
-      </div>
-      <div class="answers">
-        ${skill.lessons.map((l,i)=>{
-          const done = prog.includes(l.id);
-          return `
-            <div class="opt ${done ? "correct" : ""}" data-lesson="${l.id}">
-              <div>
-                <b>Lesson ${i+1}:</b> ${l.title}
-                <div style="color:var(--muted); font-size:12px; margin-top:4px">
-                  ${done ? "Completed — repeat for XP" : "New — unlocks progress"}
-                </div>
-              </div>
-              <code>${done ? "+8 XP" : "+15 XP"}</code>
-            </div>
-          `;
-        }).join("")}
-      </div>
-    `;
-    main.querySelectorAll(".opt").forEach(opt=>{
-      opt.addEventListener("click", ()=>{
-        const lessonId = opt.getAttribute("data-lesson");
-        startLesson(skillId, lessonId);
-      });
-    });
-  }
-
-  function startLesson(skillId, lessonId){
-    const skill = SKILLS.find(s=>s.id===skillId);
-    const lesson = skill.lessons.find(l=>l.id===lessonId);
-    if(!lesson) return;
-
-    // lesson runtime
-    lessonRun = {
-      skillId,
-      lessonId,
-      hearts: state.heartsMax,
-      stepIndex: 0,
-      steps: lesson.steps,
-      selected: null,
-      status: "idle", // idle | checked
-      gainedXP: 0,
-      currentStep: lesson.steps[0]
-    };
-
-    screen = { type:"lesson", skillId, lessonId };
-    el("mainTitle").textContent = `${skill.icon} ${skill.title}`;
-    el("mainSub").textContent = `Lesson: ${lesson.title}`;
-    speakBtn.style.display = "inline-flex";
-    actionBtn.textContent = "Check";
-    actionBtn.disabled = true;
-
-    actionBtn.onclick = ()=>{
-      if(!lessonRun) return;
-      if(lessonRun.status === "idle") checkAnswer();
-      else nextStep();
-    };
-
-    renderLesson();
-  }
-
-  function renderMain(){
-    if(screen.type==="home"){
-      const pick = pickNextLesson();
-      const remaining = Math.max(0, state.dailyGoalXP - state.todayXP);
-      main.innerHTML = `
-        <div class="q pop">
-          <h2>Continue</h2>
-          <p>${pick ? "Jump back in with a quick lesson." : "Add more lessons in the code to continue."}</p>
-        </div>
-
-        <div class="row">
-          <button class="btn" ${pick ? "" : "disabled"} id="continueBtn">Continue</button>
-          <button class="btn secondary" id="practiceBtn">Quick practice</button>
-        </div>
-
-        <div style="height:12px"></div>
-
-        <div class="q">
-          <h2>Daily goal</h2>
-          <p>${remaining===0 ? "Goal achieved 🎉" : `Need <b>${remaining} XP</b> to hit today’s goal.`}</p>
-        </div>
-
-        <div class="q">
-          <h2>How this app teaches</h2>
-          <p>Short, dopamine-friendly steps: <b>see</b> → <b>choose</b> → <b>type</b> → <b>repeat</b>. You earn XP, keep a streak, and unlock the path.</p>
-        </div>
-      `;
-      const cbtn = document.getElementById("continueBtn");
-      if(cbtn){
-        cbtn.addEventListener("click", ()=>{
-          if(pick) startLesson(pick.skillId, pick.lessonId);
-        });
-      }
-      document.getElementById("practiceBtn").addEventListener("click", ()=>{
-        const pick2 = pickNextLesson();
-        if(pick2) startLesson(pick2.skillId, pick2.lessonId);
-      });
-    }
-  }
-
-  function renderLesson(){
-    const total = lessonRun.steps.length;
-    const idx = lessonRun.stepIndex;
-    const step = lessonRun.steps[idx];
-    lessonRun.currentStep = step;
-
-    // header meters
-    const pct = Math.round(((idx)/total)*100);
-    const hearts = Array.from({length: state.heartsMax}).map((_,i)=>`<div class="heart ${i < lessonRun.hearts ? "" : "off"}"></div>`).join("");
-
-    const top = `
-      <div class="lesson-top">
-        <div class="meter"><div style="width:${pct}%"></div></div>
-        <div class="hearts" title="Hearts">${hearts}</div>
-      </div>
-    `;
-
-    // question content
-    let content = "";
-    if(step.type === "mc"){
-      content = `
-        <div class="q pop">
-          <h2>${step.prompt}</h2>
-          <p>Italian target: <b>${step.it}</b> <button class="btn ghost small" style="padding:8px 10px; margin-left:8px" onclick="window.__speak()">🔊</button></p>
-        </div>
-        <div class="answers">
-          ${step.choices.map(c=>`
-            <div class="opt ${lessonRun.selected===c ? "selected":""}" data-choice="${escapeHtml(c)}">
-              <div>${escapeHtml(c)}</div>
-              <code>tap</code>
-            </div>
-          `).join("")}
-        </div>
-      `;
-    }else if(step.type === "type"){
-      content = `
-        <div class="q pop">
-          <h2>${step.prompt}</h2>
-          <p>Hint: <b>${step.it}</b> <button class="btn ghost small" style="padding:8px 10px; margin-left:8px" onclick="window.__speak()">🔊</button></p>
-        </div>
-        <input class="input" id="typeInput" placeholder="Type here…" autocomplete="off" />
-        <div style="height:10px"></div>
-        <div class="hint">Tip: accents matter, but we accept common variations.</div>
-      `;
+    if (q.type === 'word-bank' || q.type === 'listening') {
+      const answer = selectedTokens.map(t => t.text).join(' ');
+      // Simple check (case insensitive for user friendliness, though strictness varies)
+      isCorrect = answer.toLowerCase() === q.correctTokens.join(' ').toLowerCase();
+    } else if (q.type === 'multiple-choice') {
+      isCorrect = selectedOption === q.correctId;
     }
 
-    main.innerHTML = top + content;
-    window.__speak = ()=> speakItalian(step.it);
-
-    // wire answers
-    if(step.type==="mc"){
-      main.querySelectorAll(".opt").forEach(opt=>{
-        opt.addEventListener("click", ()=>{
-          if(lessonRun.status !== "idle") return;
-          const choice = opt.getAttribute("data-choice");
-          lessonRun.selected = unescapeHtml(choice);
-          main.querySelectorAll(".opt").forEach(o=>o.classList.remove("selected"));
-          opt.classList.add("selected");
-          actionBtn.disabled = false;
-          pulse(actionBtn);
-        });
-      });
-    }else if(step.type==="type"){
-      const input = el("typeInput");
-      input.focus({preventScroll:true});
-      input.addEventListener("input", ()=>{
-        if(lessonRun.status !== "idle") return;
-        actionBtn.disabled = input.value.trim().length < 1;
-      });
-      input.addEventListener("keydown", (e)=>{
-        if(e.key==="Enter" && !actionBtn.disabled){
-          if(lessonRun.status==="idle") checkAnswer();
-          else nextStep();
-        }
-      });
-      actionBtn.disabled = true;
+    if (isCorrect) {
+      setFeedbackStatus('correct');
+      playSound('correct');
+      if (q.audio) speak(q.audio);
+    } else {
+      setFeedbackStatus('wrong');
+      setShake(true);
+      setTimeout(() => setShake(false), 500);
+      setHearts(h => Math.max(0, h - 1));
+      playSound('wrong');
     }
+  };
 
-    actionBtn.textContent = "Check";
-    actionBtn.disabled = actionBtn.disabled || lessonRun.status !== "idle";
-  }
-
-  function checkAnswer(){
-    const step = lessonRun.steps[lessonRun.stepIndex];
-    let correct = false;
-
-    if(step.type==="mc"){
-      correct = (lessonRun.selected === step.answer);
-      // mark UI
-      main.querySelectorAll(".opt").forEach(opt=>{
-        const c = unescapeHtml(opt.getAttribute("data-choice"));
-        opt.classList.remove("selected");
-        if(c === step.answer) opt.classList.add("correct");
-        if(lessonRun.selected === c && !correct) opt.classList.add("wrong");
-      });
-    }else if(step.type==="type"){
-      const input = el("typeInput");
-      const v = normalize(input.value);
-      correct = step.answers.some(a => normalize(a) === v);
-      input.disabled = true;
-      input.classList.add(correct ? "pop" : "");
-      if(!correct){
-        toast(`Correct: ${step.it}`);
-      }
-    }
-
-    if(correct){
-      const gained = 4;
-      lessonRun.gainedXP += gained;
-      toast(`Correct +${gained} XP`);
-    }else{
-      lessonRun.hearts -= 1;
-      toast("Oops — heart lost");
-      if(lessonRun.hearts <= 0){
-        endLesson(false);
-        return;
-      }
-    }
-
-    lessonRun.status = "checked";
-    actionBtn.textContent = (lessonRun.stepIndex === lessonRun.steps.length-1) ? "Finish" : "Next";
-    actionBtn.disabled = false;
-    pulse(actionBtn);
-  }
-
-  function nextStep(){
-    lessonRun.status = "idle";
-    lessonRun.selected = null;
-    lessonRun.stepIndex += 1;
-
-    if(lessonRun.stepIndex >= lessonRun.steps.length){
-      endLesson(true);
+  const nextQuestion = () => {
+    if (hearts === 0) {
+      setScreen('fail');
       return;
     }
-    renderLesson();
-  }
 
-  function endLesson(won){
-    speakBtn.style.display = "none";
-    const skill = SKILLS.find(s=>s.id===lessonRun.skillId);
-    const lesson = skill.lessons.find(l=>l.id===lessonRun.lessonId);
-    const prog = state.progress[lessonRun.skillId]?.completedLessons || [];
-    const firstTime = !prog.includes(lessonRun.lessonId);
-
-    const baseXP = firstTime ? 15 : 8;
-    const bonus = Math.max(0, lessonRun.gainedXP);
-    const totalXP = won ? (baseXP + bonus) : Math.max(2, Math.floor(bonus/2));
-
-    if(won){
-      lessonCompleted(lessonRun.skillId, lessonRun.lessonId);
-      addXP(totalXP);
-      burstConfetti();
-    }else{
-      addXP(totalXP);
+    if (currentQuestionIdx < QUESTIONS.length - 1) {
+      const nextIdx = currentQuestionIdx + 1;
+      setCurrentQuestionIdx(nextIdx);
+      setFeedbackStatus('idle');
+      setSelectedOption(null);
+      prepareQuestion(nextIdx);
+    } else {
+      setScreen('complete');
+      setXp(x => x + 20);
     }
+  };
 
-    screen = { type:"result" };
-    el("mainTitle").textContent = won ? "Lesson complete" : "Try again";
-    el("mainSub").textContent = won ? "Nice. Keep the momentum." : "You ran out of hearts. Quick retry?";
-    actionBtn.textContent = won ? "Continue" : "Retry";
-    actionBtn.disabled = false;
+  const quitLesson = () => {
+    setScreen('home');
+  };
 
-    actionBtn.onclick = ()=>{
-      if(won){
-        // go back to skill view
-        openSkill(lessonRun.skillId);
-      }else{
-        startLesson(lessonRun.skillId, lessonRun.lessonId);
-      }
-    };
+  // --- Renderers ---
 
-    const nextPick = pickNextLesson();
+  const renderHome = () => (
+    <div className="min-h-screen bg-white pb-24">
+      {/* Top Bar */}
+      <header className="sticky top-0 bg-white/95 backdrop-blur-sm z-10 border-b border-gray-200 px-4 py-3 flex justify-between items-center max-w-md mx-auto">
+        <div className="flex gap-4">
+            <div className="flex items-center gap-1">
+                <img src="https://flagcdn.com/w40/it.png" className="w-6 h-4 rounded-sm shadow-sm" alt="Italian" />
+            </div>
+        </div>
+        <div className="flex gap-4 font-bold text-gray-700">
+            <div className="flex items-center gap-1 text-orange-500">
+                <Zap size={20} fill="currentColor" /> {streak}
+            </div>
+            <div className="flex items-center gap-1 text-yellow-500">
+                <Star size={20} fill="currentColor" /> {xp}
+            </div>
+            <div className="flex items-center gap-1 text-red-500">
+                <Heart size={20} fill="currentColor" /> {hearts}
+            </div>
+        </div>
+      </header>
 
-    main.innerHTML = `
-      <div class="q pop">
-        <h2>${won ? "✅ Great job!" : "💗 Hearts empty"}</h2>
-        <p>
-          <b>${lesson.title}</b><br/>
-          XP earned: <b style="color:var(--accent)">${totalXP}</b><br/>
-          Streak: <b>🔥 ${state.streak}</b>
-        </p>
+      {/* Path */}
+      <div className="max-w-md mx-auto pt-8 px-4 flex flex-col items-center gap-6 relative">
+        {LEVELS.map((level, idx) => (
+          <div 
+            key={level.id} 
+            className="relative z-0"
+            style={{ 
+                transform: `translateX(${(idx % 2 === 0 ? -1 : 1) * 20}px)` 
+            }}
+          >
+             {/* Crown/Icon */}
+            <div className="flex flex-col items-center gap-2 group cursor-pointer" onClick={() => startLesson(level.id)}>
+                <div className="relative">
+                     {/* 3D Button Circle */}
+                    <div className={`w-20 h-20 rounded-full ${level.color} flex items-center justify-center shadow-[0_6px_0_0_rgba(0,0,0,0.2)] active:shadow-none active:translate-y-[6px] transition-all border-4 border-white ring-4 ring-gray-100`}>
+                        {level.icon === 'egg' && <Star size={40} className="text-white opacity-90" fill="currentColor" />}
+                        {level.icon === 'hand' && <User size={40} className="text-white opacity-90" />}
+                        {level.icon === 'apple' && <Check size={40} className="text-white opacity-90" />}
+                        {level.icon === 'plane' && <ArrowRight size={40} className="text-white opacity-90" />}
+                        {level.icon === 'paw' && <Zap size={40} className="text-white opacity-90" />}
+                        
+                        {/* Progress Ring mockup */}
+                        <svg className="absolute -top-1 -left-1 w-[88px] h-[88px] rotate-[-90deg]">
+                             <circle cx="44" cy="44" r="42" fill="none" stroke="#e5e7eb" strokeWidth="3" />
+                             {idx === 0 && <circle cx="44" cy="44" r="42" fill="none" stroke="#fbbf24" strokeWidth="3" strokeDasharray="264" strokeDashoffset="60" strokeLinecap="round" />}
+                        </svg>
+                    </div>
+                </div>
+                <span className="font-bold text-gray-700 text-lg">{level.title}</span>
+            </div>
+          </div>
+        ))}
+        
+        {/* Floating Mascot */}
+        <div className="fixed bottom-24 right-4 z-20 hidden md:block">
+            <Mascot mood="happy" />
+        </div>
       </div>
 
-      <div class="q">
-        <h2>What you just practiced</h2>
-        <p>${lesson.steps.map(s=>`<span style="display:inline-block; margin:6px 8px 0 0; padding:6px 10px; border:1px solid var(--stroke); border-radius:999px; background:rgba(255,255,255,.03)">${escapeHtml(s.it)}</span>`).join("")}</p>
+      {/* Bottom Nav */}
+      <nav className="fixed bottom-0 w-full bg-white border-t border-gray-200 py-3 px-6 flex justify-around items-center z-50">
+        <Home size={28} className="text-[#58cc02]" />
+        <Trophy size={28} className="text-gray-400 hover:text-gray-600 cursor-pointer" />
+        <BookOpen size={28} className="text-gray-400 hover:text-gray-600 cursor-pointer" />
+        <User size={28} className="text-gray-400 hover:text-gray-600 cursor-pointer" />
+      </nav>
+    </div>
+  );
+
+  const renderLesson = () => {
+    const q = QUESTIONS[currentQuestionIdx];
+
+    return (
+      <div className="min-h-screen bg-white flex flex-col max-w-lg mx-auto overflow-hidden">
+        {/* Lesson Header */}
+        <div className="px-4 py-6 flex items-center gap-4">
+          <X className="text-gray-400 cursor-pointer hover:text-gray-600" onClick={quitLesson} />
+          <ProgressBar current={currentQuestionIdx + (feedbackStatus === 'correct' ? 1 : 0)} total={QUESTIONS.length} />
+          <div className="flex items-center text-red-500 font-bold">
+            <Heart fill="currentColor" className="w-6 h-6 mr-1" /> {hearts}
+          </div>
+        </div>
+
+        {/* Content Area */}
+        <div className="flex-1 px-4 flex flex-col gap-6 overflow-y-auto pb-40">
+          <h2 className="text-2xl font-bold text-gray-700 mt-2">{q.question}</h2>
+
+          {/* Type: Word Bank or Listening */}
+          {(q.type === 'word-bank' || q.type === 'listening') && (
+            <>
+                <div className="flex items-start gap-4">
+                    <div className="mt-2 cursor-pointer" onClick={() => q.audio && speak(q.audio)}>
+                         <div className="bg-[#1cb0f6] p-3 rounded-2xl shadow-[0_4px_0_0_#1899d6] active:translate-y-1 active:shadow-none transition-all">
+                             <Volume2 className="text-white w-6 h-6" />
+                         </div>
+                    </div>
+                    
+                    {/* Speech Bubble / Target */}
+                    {q.type === 'word-bank' && (
+                        <div className="border-2 border-gray-200 rounded-2xl p-4 relative bg-white">
+                            <div className="absolute top-4 -left-2 w-4 h-4 bg-white border-l-2 border-b-2 border-gray-200 transform rotate-45"></div>
+                            <p className="text-lg text-gray-600">{q.translation}</p>
+                        </div>
+                    )}
+                </div>
+
+                {/* Selected Area */}
+                <div className="min-h-[140px] border-t-2 border-b-2 border-transparent bg-gray-50 rounded-xl p-2 flex flex-wrap gap-2 content-start transition-colors"
+                     style={{ borderColor: feedbackStatus === 'wrong' ? '#ff4b4b' : 'transparent' }}>
+                    {selectedTokens.map((token, i) => (
+                        <button
+                            key={`${token.id}-sel`}
+                            onClick={() => handleTokenClick(token, true)}
+                            className="bg-white border-2 border-gray-200 rounded-xl px-4 py-2 font-medium text-gray-700 shadow-[0_2px_0_0_rgba(0,0,0,0.1)] hover:bg-gray-50"
+                        >
+                            {token.text}
+                        </button>
+                    ))}
+                </div>
+
+                {/* Bank Area */}
+                <div className="flex flex-wrap gap-2 justify-center mt-4">
+                    {availableTokens.map((token) => (
+                        <div key={token.id} className={token.used ? 'opacity-0 pointer-events-none' : ''}>
+                             <button
+                                onClick={() => handleTokenClick(token, false)}
+                                className="bg-white border-2 border-gray-200 rounded-xl px-4 py-2 font-medium text-gray-700 shadow-[0_2px_0_0_rgba(0,0,0,0.1)] active:scale-95 transition-transform"
+                            >
+                                {token.text}
+                            </button>
+                        </div>
+                    ))}
+                </div>
+            </>
+          )}
+
+          {/* Type: Multiple Choice */}
+          {q.type === 'multiple-choice' && (
+            <div className="grid grid-cols-1 gap-4 mt-4">
+              {q.options.map((opt) => (
+                <div 
+                    key={opt.id}
+                    onClick={() => handleOptionClick(opt.id)}
+                    className={`
+                        border-2 rounded-2xl p-4 flex items-center gap-4 cursor-pointer transition-all
+                        ${selectedOption === opt.id 
+                            ? 'border-[#1cb0f6] bg-blue-50' 
+                            : 'border-gray-200 hover:bg-gray-50'}
+                    `}
+                >
+                    <div className="text-4xl">{opt.image}</div>
+                    <div className={`font-bold text-lg ${selectedOption === opt.id ? 'text-[#1cb0f6]' : 'text-gray-700'}`}>
+                        {opt.text}
+                    </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Footer / Feedback Sheet */}
+        <div 
+            className={`
+                fixed bottom-0 w-full max-w-lg border-t-2 p-4 pb-8 transition-colors duration-300 z-50
+                ${feedbackStatus === 'idle' ? 'bg-white border-gray-200' : ''}
+                ${feedbackStatus === 'correct' ? 'bg-[#d7ffb8] border-transparent' : ''}
+                ${feedbackStatus === 'wrong' ? 'bg-[#ffdfe0] border-transparent' : ''}
+            `}
+        >
+          <div className="flex justify-between items-center mb-4">
+            {feedbackStatus === 'correct' && (
+                <div className="flex items-center gap-3 text-[#58cc02] font-bold text-xl animate-pulse">
+                    <div className="bg-white p-2 rounded-full">
+                        <Check size={32} strokeWidth={4} />
+                    </div>
+                    <span>Excellent!</span>
+                </div>
+            )}
+            {feedbackStatus === 'wrong' && (
+                <div className="flex flex-col gap-1">
+                    <div className="flex items-center gap-3 text-[#ff4b4b] font-bold text-xl">
+                        <div className="bg-white p-2 rounded-full">
+                            <X size={32} strokeWidth={4} />
+                        </div>
+                        <span>Incorrect</span>
+                    </div>
+                    <div className="text-[#ff4b4b] pl-14">
+                        Correct Answer: <span className="font-bold">{q.audio}</span> {/* Using audio text as generic truth for simplicity */}
+                    </div>
+                </div>
+            )}
+          </div>
+
+          <Button3D 
+            fullWidth 
+            color={feedbackStatus === 'wrong' ? 'red' : (feedbackStatus === 'correct' ? 'green' : (selectedTokens.length === 0 && !selectedOption ? 'gray' : 'green'))}
+            onClick={feedbackStatus === 'idle' ? checkAnswer : nextQuestion}
+            disabled={feedbackStatus === 'idle' && selectedTokens.length === 0 && !selectedOption}
+          >
+            {feedbackStatus === 'idle' ? 'Check' : 'Continue'}
+          </Button3D>
+        </div>
+      </div>
+    );
+  };
+
+  const renderComplete = () => (
+    <div className="min-h-screen bg-white flex flex-col items-center justify-center p-8 text-center max-w-md mx-auto">
+      <Mascot mood="excited" />
+      <h2 className="text-3xl font-bold text-yellow-400 mt-8 mb-4">Lesson Complete!</h2>
+      
+      <div className="grid grid-cols-3 gap-4 w-full mb-8">
+        <div className="bg-orange-400 rounded-2xl p-4 text-white">
+            <div className="text-xs uppercase font-bold opacity-80">XP Earned</div>
+            <div className="text-2xl font-bold flex justify-center items-center gap-1">
+                <Zap size={20} fill="currentColor" /> 20
+            </div>
+        </div>
+        <div className="bg-blue-400 rounded-2xl p-4 text-white">
+            <div className="text-xs uppercase font-bold opacity-80">Committed</div>
+            <div className="text-2xl font-bold">100%</div>
+        </div>
+        <div className="bg-green-400 rounded-2xl p-4 text-white">
+            <div className="text-xs uppercase font-bold opacity-80">Amazing</div>
+            <div className="text-2xl font-bold">Speed</div>
+        </div>
       </div>
 
-      <div class="row">
-        <button class="btn secondary" id="backSkillBtn">Back to skill</button>
-        <button class="btn" id="nextBtn" ${nextPick ? "" : "disabled"}>${nextPick ? "Next lesson" : "No next lesson"}</button>
+      <Button3D fullWidth onClick={() => setScreen('home')}>
+        Continue
+      </Button3D>
+    </div>
+  );
+
+  const renderFail = () => (
+    <div className="min-h-screen bg-gray-900/90 flex flex-col items-center justify-center p-8 text-center absolute top-0 left-0 w-full z-50 backdrop-blur-sm">
+      <div className="bg-white rounded-3xl p-6 w-full max-w-sm flex flex-col items-center animate-bounce-slow">
+          <Mascot mood="sad" />
+          <h2 className="text-2xl font-bold text-gray-700 mt-4">Out of hearts!</h2>
+          <p className="text-gray-500 mb-6">You made too many mistakes. Practice makes perfect!</p>
+          
+          <Button3D fullWidth color="blue" onClick={() => {
+              setHearts(5);
+              setScreen('home');
+          }}>
+            Quit Lesson
+          </Button3D>
       </div>
-    `;
+    </div>
+  );
 
-    document.getElementById("backSkillBtn").addEventListener("click", ()=>openSkill(lessonRun.skillId));
-    const nextBtn = document.getElementById("nextBtn");
-    if(nextBtn && nextPick){
-      nextBtn.addEventListener("click", ()=>startLesson(nextPick.skillId, nextPick.lessonId));
-    }
+  return (
+    <>
+      {screen === 'home' && renderHome()}
+      {screen === 'lesson' && renderLesson()}
+      {screen === 'complete' && renderComplete()}
+      {screen === 'fail' && renderFail()}
+    </>
+  );
+}
 
-    lessonRun = null;
-  }
-
-  function pulse(node){
-    node.classList.remove("pop");
-    void node.offsetWidth;
-    node.classList.add("pop");
-  }
-
-  function normalize(s){
-    return (s||"")
-      .trim()
-      .toLowerCase()
-      .replace(/[’']/g,"'")
-      .normalize("NFD").replace(/[\u0300-\u036f]/g,""); // remove accents
-  }
-
-  function escapeHtml(str){
-    return (str+"")
-      .replaceAll("&","&amp;")
-      .replaceAll("<","&lt;")
-      .replaceAll(">","&gt;")
-      .replaceAll('"',"&quot;");
-  }
-  function unescapeHtml(str){
-    const t = document.createElement("textarea");
-    t.innerHTML = str;
-    return t.value;
-  }
-
-  // ----------------------------
-  // Boot
-  // ----------------------------
-  function init(){
-    renderStats();
-    renderPath();
-    goHome();
-  }
-
-  init();
-</script>
-</body>
-</html>
